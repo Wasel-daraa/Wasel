@@ -281,21 +281,11 @@ export function validateOrderNotModified(originalOrderData, currentOrderData) {
 /**
  * معتدل: تسجيل محاولات دفع مريبة
  */
-export async function logSuspiciousPaymentAttempt(supabase, userId, reason, details = {}) {
-  try {
-    const { error } = await supabase.from('suspicious_activities_log').insert({
-      user_id: userId,
-      activity_type: 'suspicious_payment',
-      reason,
-      details,
-      ip_address: null,
-      user_agent: navigator.userAgent,
-      occurred_at: new Date().toISOString(),
-    });
-    // Silently ignore if table doesn't exist (404) — non-critical logging
-    if (error) console.warn('Suspicious activity log skipped:', error.code);
-  } catch (err) {
-    // Non-critical — never block the user flow
+export async function logSuspiciousPaymentAttempt(_supabase, _userId, _reason, _details = {}) {
+  // Table suspicious_activities_log does not exist in Supabase yet.
+  // Skip the HTTP call entirely to avoid 404 noise in browser console.
+  // To re-enable: create the table via SUPABASE_SECURITY_SQL_CLEAN.md, then restore the insert call.
+}
   }
 }
 
