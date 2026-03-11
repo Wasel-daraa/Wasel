@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm --prefix wasel-main run dev",
-    "build": "npm --prefix wasel-main run build",
+    "build": "npm --prefix wasel-main install && npm --prefix wasel-main run build",
     "preview": "npm --prefix wasel-main run preview"
   },
   "dependencies": {
