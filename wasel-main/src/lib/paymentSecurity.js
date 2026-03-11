@@ -16,18 +16,21 @@ export function validatePaymentBeforeOrder(orderData) {
   }
 
   // تحقق من أن طريقة الدفع معروفة
-  const VALID_METHODS = ['paypal', 'wallet', 'whatsapp', 'card'];
+  const VALID_METHODS = ['paypal', 'wallet', 'whatsapp', 'card', 'shared_cart'];
   if (orderData.paymentMethod && !VALID_METHODS.includes(orderData.paymentMethod)) {
     errors.push(`طريقة دفع غير صحيحة: ${orderData.paymentMethod}`);
   }
 
-  // تحقق من أن هناك مبلغ
-  if (!orderData.amount || orderData.amount <= 0) {
+  // تحقق من أن هناك مبلغ (support both flat and nested)
+  const amount = orderData.amount || orderData.totalUSD || 0;
+  if (!amount || amount <= 0) {
     errors.push('المبلغ يجب أن يكون أعظم من صفر');
   }
 
-  // تحقق من أن البيانات المطلوبة موجودة
-  if (!orderData.recipientName || !orderData.recipientPhone) {
+  // تحقق من أن البيانات المطلوبة موجودة (support both flat and nested)
+  const recipientName = orderData.recipientName || orderData.recipient?.name;
+  const recipientPhone = orderData.recipientPhone || orderData.recipient?.phone;
+  if (!recipientName || !recipientPhone) {
     errors.push('بيانات المستقبل مطلوبة');
   }
 
@@ -42,7 +45,8 @@ export function validatePaymentBeforeOrder(orderData) {
       if (!item.id || !item.quantity || item.quantity <= 0) {
         errors.push(`الصنف ${index + 1} غير صحيح`);
       }
-      if (!item.price || item.price < 0) {
+      const itemPrice = item.price || item.priceSYP || item.priceUSD || 0;
+      if (itemPrice < 0) {
         errors.push(`سعر الصنف ${index + 1} غير صحيح`);
       }
     });
@@ -279,17 +283,19 @@ export function validateOrderNotModified(originalOrderData, currentOrderData) {
  */
 export async function logSuspiciousPaymentAttempt(supabase, userId, reason, details = {}) {
   try {
-    await supabase.from('suspicious_activities_log').insert({
+    const { error } = await supabase.from('suspicious_activities_log').insert({
       user_id: userId,
       activity_type: 'suspicious_payment',
       reason,
       details,
-      ip_address: null, // يمكن إضافة من الـ backend
+      ip_address: null,
       user_agent: navigator.userAgent,
       occurred_at: new Date().toISOString(),
     });
+    // Silently ignore if table doesn't exist (404) — non-critical logging
+    if (error) console.warn('Suspicious activity log skipped:', error.code);
   } catch (err) {
-    console.error('❌ Failed to log suspicious activity:', err);
+    // Non-critical — never block the user flow
   }
 }
 
