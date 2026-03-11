@@ -1,4 +1,6 @@
 {
+  "installCommand": "cd wasel-main && npm install",
+  "buildCommand": "cd wasel-main && npm run build",
   "outputDirectory": "wasel-main/dist",
   "headers": [
     {
