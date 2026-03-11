@@ -1919,7 +1919,6 @@ const Cart = () => {
         const authUser = authData?.user;
         const directPayload = {
           order_number: sharedOrderNumber,
-          user_email: currentUserEmail || authUser?.email || 'guest@example.com',
           status: 'pending',
           payment_status: 'pending',
           payment_method: 'whatsapp',
@@ -1963,11 +1962,13 @@ const Cart = () => {
         if (sharedOrder?.id && Array.isArray(sharePayload.items) && sharePayload.items.length > 0) {
           const orderItems = sharePayload.items.map((item) => ({
             order_id: sharedOrder.id,
-            product_name: item.name_ar || item.name,
-            product_id: item.id,
+            item_name: item.name_ar || item.name,
+            item_id: item.id || crypto.randomUUID(),
+            item_type: item.item_type || 'product',
             quantity: item.quantity,
-            price: item.priceUSD,
-            image_url: item.image_url,
+            unit_price: Number(item.priceUSD || 0),
+            total_price: Number(item.priceUSD || 0) * (item.quantity || 1),
+            item_image: item.image_url,
           }));
           await supabase.from('order_items').insert(orderItems);
         }
@@ -2236,7 +2237,6 @@ const Cart = () => {
             const authUser = authData?.user;
             const directPayload = {
               order_number: generatedOrderNumber,
-              user_email: currentUserEmail || authUser?.email || 'guest@example.com',
               status: paymentStatus,
               payment_status: paymentStatus === 'paid' ? 'succeeded' : 'pending',
               payment_method: orderData.paymentMethod || 'whatsapp',
@@ -2299,11 +2299,13 @@ const Cart = () => {
       // حفظ عناصر الطلب
       const orderItems = orderData.items.map(item => ({
         order_id: order.id,
-        product_name: item.name_ar || item.name,
-        product_id: item.id,
+        item_name: item.name_ar || item.name,
+        item_id: item.id || crypto.randomUUID(),
+        item_type: item.item_type || 'product',
         quantity: item.quantity,
-        price: item.priceUSD,
-        image_url: item.image_url || item.image
+        unit_price: Number(item.priceUSD || 0),
+        total_price: Number(item.priceUSD || 0) * (item.quantity || 1),
+        item_image: item.image_url || item.image
       }));
 
       const { data: items, error: itemsError } = await supabase
