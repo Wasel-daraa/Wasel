@@ -25,6 +25,18 @@ function toUniqueStrings(values: Array<string | null | undefined>): string[] {
 }
 
 function getServerStyledContent(event: string, newStatus: string, fallbackTitle: string, fallbackBody: string) {
+  if (event === 'new_order_created') {
+    const paymentMethod = fallbackBody?.includes('باي بال') ? 'باي بال 💳'
+      : fallbackBody?.includes('واتساب') ? 'واتساب 💬'
+      : fallbackBody?.includes('المحفظة') ? 'المحفظة 💰'
+      : fallbackBody?.includes('سلة مشتركة') ? 'سلة مشتركة 🛒'
+      : '';
+    return {
+      title: '🆕 طلب جديد وصل',
+      body: paymentMethod ? `طلب جديد عبر ${paymentMethod}` : (fallbackBody || 'طلب جديد وصل! تحقق منه الآن.'),
+    };
+  }
+
   if (event === 'order_assigned') {
     return {
       title: '🛵 طلب جديد للتوصيل',
@@ -63,6 +75,7 @@ function getServerStyledContent(event: string, newStatus: string, fallbackTitle:
       delivering: { title: '🚚 طلبك بالطريق إليك', body: 'الموصل انطلق وطلبك في الطريق.' },
       completed: { title: '🎉 تم تسليم طلبك', body: 'الحمد لله تم التسليم. صحة وهنا!' },
       cancelled: { title: '❌ تم إلغاء الطلب', body: 'تم إلغاء طلبك. تواصل معنا لأي مساعدة.' },
+      rejected_by_courier: { title: '⚠️ الموصل رفض الطلب', body: 'قام الموصل برفض استلام الطلب. يرجى إعادة تعيينه.' },
     };
     return statusContent[String(newStatus || '').toLowerCase()] || {
       title: '🔔 تحديث على طلبك',
@@ -184,6 +197,16 @@ async function sendFCMNotification(
           notification: {
             sound: 'default',
             channel_id: 'wasel_notifications',
+            click_action: 'OPEN_ORDER',
+          },
+        },
+        webpush: {
+          notification: {
+            icon: '/logo/wasel-logo.png',
+            badge: '/logo/wasel-logo.png',
+          },
+          fcm_options: {
+            link: data?.order_id ? `/TrackOrder?order=${data.order_id}` : '/',
           },
         },
         data: data || {},
@@ -298,6 +321,28 @@ Deno.serve(async (req) => {
         ...((adminUsers || []).map((row: any) => row?.id)),
         ...((usersAdmins || []).map((row: any) => row?.auth_id || row?.id)),
       ]);
+
+      // Also create server-side in-app notifications for admins
+      const adminPublicIds = toUniqueStrings([
+        ...((usersAdmins || []).map((row: any) => row?.id)),
+      ]);
+      if (adminPublicIds.length > 0) {
+        const now = new Date().toISOString();
+        const orderId = data?.order_id || '';
+        const orderLink = orderId ? `/TrackOrder?order=${orderId}` : '/MyOrders';
+        const notifRows = adminPublicIds.map((uid: string) => ({
+          user_id: uid,
+          title: finalTitle,
+          message: finalBody,
+          type: event === 'new_order_created' ? 'new_order' : 'order_update',
+          is_read: false,
+          link: orderLink,
+          created_at: now,
+        }));
+        await supabase.from('notifications').insert(notifRows).then(({ error: inAppErr }) => {
+          if (inAppErr) console.warn('Server in-app notification insert warning:', inAppErr.message);
+        });
+      }
 
       if (staffAuthIds.length > 0) {
         const { data: devices } = await supabase
