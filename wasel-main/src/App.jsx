@@ -22,6 +22,7 @@ import SharedPay from './pages/SharedPay';
 import SharedCartPay from './pages/SharedCartPay';
 import SmartLottie from '@/components/animations/SmartLottie';
 import { ANIMATION_PRESETS } from '@/components/animations/animationPresets';
+import { authError, authTrace, authWarn } from '@/lib/authDebug';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -56,6 +57,7 @@ const AuthenticatedApp = () => {
     try {
       const email = resolvedSession?.email || null;
       const authUserId = resolvedSession?.user?.id || null;
+      authTrace('AUTH_ROLE_RESOLVE_START', { email, authUserId });
 
       if (!authUserId && !email) {
         setUserRole('user');
@@ -84,6 +86,7 @@ const AuthenticatedApp = () => {
 
       const normalizedRole = String(preferredUserRow?.role || '').toLowerCase();
       if (normalizedRole) {
+        authTrace('AUTH_ROLE_RESOLVE_FROM_USERS', { role: normalizedRole, authUserId, email });
         setUserRole(normalizedRole);
         return;
       }
@@ -97,6 +100,7 @@ const AuthenticatedApp = () => {
           .maybeSingle();
 
         if (adminError) {
+          authError('AUTH_ROLE_RESOLVE_ADMIN_FALLBACK_QUERY_FAILED', adminError, { authUserId });
           console.warn('resolveUserRole admin_users fallback error:', adminError);
           setUserRole('user');
           return;
@@ -118,13 +122,19 @@ const AuthenticatedApp = () => {
           localStorage.setItem('admin_user_data', JSON.stringify(adminRow));
           localStorage.setItem('admin_user', JSON.stringify(adminRow));
 
+          authTrace('AUTH_ROLE_RESOLVE_FROM_ADMIN_USERS', { mappedRole, adminRole, authUserId });
           setUserRole(mappedRole);
           return;
         }
       }
 
+      authWarn('AUTH_ROLE_RESOLVE_FALLBACK_USER', { authUserId, email });
       setUserRole('user');
     } catch (error) {
+      authError('AUTH_ROLE_RESOLVE_FAILED', error, {
+        email: resolvedSession?.email || null,
+        authUserId: resolvedSession?.user?.id || null,
+      });
       console.warn('resolveUserRole warning:', error);
       setUserRole('user');
     }
@@ -243,6 +253,10 @@ const AuthenticatedApp = () => {
       localStorage.removeItem('wasel_auth_region_locked');
       localStorage.removeItem('wasel_auth_preferred_region');
     } catch (error) {
+      authError('AUTH_REFERRAL_PROVISION_FAILED', error, {
+        userId: resolvedSession?.user?.id || null,
+        email: resolvedSession?.email || null,
+      });
       console.warn('applyReferralCourierProvision warning:', error);
     }
   }, []);
@@ -253,6 +267,7 @@ const AuthenticatedApp = () => {
     let timeoutId = null;
     
     const checkSession = async () => {
+      authTrace('AUTH_APP_CHECK_SESSION_START');
       // main.jsx يعالج OAuth tokens قبل تحميل React
       // هنا نتحقق فقط من الجلسة الموجودة
 
@@ -260,6 +275,7 @@ const AuthenticatedApp = () => {
       const otpSession = getOtpSession();
       if (otpSession?.email) {
         if (isMounted) {
+          authTrace('AUTH_APP_SESSION_OTP_FOUND', { email: otpSession.email });
           const resolved = { type: 'otp', email: otpSession.email };
           setActiveIdentityScope(otpSession.email);
           setSession(resolved);
@@ -272,6 +288,11 @@ const AuthenticatedApp = () => {
       // فحص Supabase session (Google OAuth تم معالجته في main.jsx)
       try {
         const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+        authTrace('AUTH_APP_GET_SESSION_RESULT', {
+          hasSession: !!supabaseSession,
+          userId: supabaseSession?.user?.id || null,
+          email: supabaseSession?.user?.email || null,
+        });
         if (supabaseSession?.user) {
           if (isMounted) {
             const resolved = { type: 'google', email: supabaseSession.user.email, user: supabaseSession.user };
@@ -284,9 +305,11 @@ const AuthenticatedApp = () => {
           return;
         }
       } catch (err) {
+        authError('AUTH_APP_GET_SESSION_FAILED', err);
         // Supabase session check failed
       }
       if (isMounted) {
+        authWarn('AUTH_APP_NO_SESSION_FOUND');
         setActiveIdentityScope('guest');
         setCheckingAuth(false);
       }
@@ -297,11 +320,18 @@ const AuthenticatedApp = () => {
     // حد أقصى للانتظار
     timeoutId = setTimeout(() => {
       if (!isMounted) return;
+      authWarn('AUTH_APP_CHECK_TIMEOUT', { timeoutMs: 5000 });
       setCheckingAuth((prev) => prev ? false : prev);
     }, 5000);
     
     // الاستماع لتغييرات الجلسة
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, supabaseSession) => {
+      authTrace('AUTH_APP_STATE_CHANGE', {
+        event,
+        hasSession: !!supabaseSession,
+        userId: supabaseSession?.user?.id || null,
+        email: supabaseSession?.user?.email || null,
+      });
       if (event === 'SIGNED_IN' && supabaseSession?.user) {
         if (isMounted) {
           const resolved = { type: 'google', email: supabaseSession.user.email, user: supabaseSession.user };
@@ -313,11 +343,17 @@ const AuthenticatedApp = () => {
             setCheckingAuth(false);
             // تهيئة الإشعارات بعد تسجيل الدخول
             initializePushNotifications();
+            authTrace('AUTH_APP_SIGNED_IN_READY', {
+              userId: supabaseSession.user.id,
+              email: supabaseSession.user.email || null,
+            });
           })();
         }
       } else if (event === 'SIGNED_OUT') {
+        authTrace('AUTH_APP_SIGNED_OUT');
         setActiveIdentityScope('guest');
         deactivateCurrentDeviceToken().catch((error) => {
+          authError('AUTH_APP_PUSH_TOKEN_DEACTIVATE_FAILED', error);
           console.warn('Push token deactivation warning:', error);
         });
         const otpSession = getOtpSession();
@@ -332,6 +368,7 @@ const AuthenticatedApp = () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
       subscription.unsubscribe();
+      authTrace('AUTH_APP_EFFECT_CLEANUP');
     };
   }, [applyReferralCourierProvision, resolveUserRole, setActiveIdentityScope]);
 

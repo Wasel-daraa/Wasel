@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from './supabase';
 import { getCurrentUser } from '@/api/waselClient';
+import { authError, authTrace, authWarn } from '@/lib/authDebug';
 
 const AuthContext = createContext();
 const AUTH_CHECK_TIMEOUT_MS = 3500;
@@ -14,11 +15,18 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState(null);
 
   useEffect(() => {
+    authTrace('AUTH_CTX_INIT');
     checkAuth();
 
     // الاستماع لتغييرات الـ auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event);
+      authTrace('AUTH_CTX_STATE_CHANGE', {
+        event,
+        hasSession: !!session,
+        userId: session?.user?.id || null,
+        email: session?.user?.email || null,
+      });
       if (event === 'SIGNED_IN' && session) {
         checkAuth();
       } else if (event === 'SIGNED_OUT') {
@@ -34,6 +42,7 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     let timedOut = false;
     try {
+      authTrace('AUTH_CTX_CHECK_START', { timeoutMs: AUTH_CHECK_TIMEOUT_MS });
       setIsLoadingAuth(true);
       setAuthError(null);
 
@@ -45,13 +54,22 @@ export const AuthProvider = ({ children }) => {
       });
 
       const currentUser = await Promise.race([getCurrentUser(), timeoutPromise]);
+      authTrace('AUTH_CTX_CHECK_RESULT', {
+        hasCurrentUser: !!currentUser,
+        timedOut,
+      });
 
       // Fallback to auth user in case profile query hangs/fails.
       if (!currentUser && timedOut) {
+        authWarn('AUTH_CTX_TIMEOUT_FALLBACK_GET_USER');
         const {
           data: { user: authUser },
         } = await supabase.auth.getUser();
         if (authUser) {
+          authTrace('AUTH_CTX_TIMEOUT_FALLBACK_USER_FOUND', {
+            userId: authUser.id,
+            email: authUser.email || null,
+          });
           setUser(authUser);
           setIsAuthenticated(true);
           return;
@@ -59,14 +77,17 @@ export const AuthProvider = ({ children }) => {
       }
       
       if (currentUser) {
+        authTrace('AUTH_CTX_AUTHENTICATED');
         setUser(currentUser);
         setIsAuthenticated(true);
       } else {
+        authWarn('AUTH_CTX_NOT_AUTHENTICATED');
         setUser(null);
         setIsAuthenticated(false);
       }
       
     } catch (error) {
+      authError('AUTH_CTX_CHECK_FAILED', error);
       console.error('Auth check failed:', error);
       setAuthError({
         type: 'auth_error',
@@ -81,6 +102,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async (shouldRedirect = false) => {
     try {
+      authTrace('AUTH_CTX_LOGOUT_START', { shouldRedirect });
       await supabase.auth.signOut();
       setUser(null);
       setIsAuthenticated(false);
@@ -89,6 +111,7 @@ export const AuthProvider = ({ children }) => {
         window.location.href = '/';
       }
     } catch (error) {
+      authError('AUTH_CTX_LOGOUT_FAILED', error);
       console.error('Logout error:', error);
     }
   };
