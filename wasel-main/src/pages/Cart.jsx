@@ -2194,7 +2194,7 @@ const Cart = () => {
   // حفظ الطلب في Supabase
   const saveOrderToSupabase = useCallback(async (orderData) => {
     try {
-
+      console.log('💾 saveOrderToSupabase called with:', { paymentMethod: orderData.paymentMethod, totalUSD: orderData.totalUSD, itemCount: orderData.items?.length });
       const generatedOrderNumber = await generateOrderNumber();
       const paymentStatus = (orderData.paymentMethod === 'paypal' && orderData.paypalDetails) ? 'paid' : 'pending';
       // Try dynamic compatibility RPC first.
@@ -2489,8 +2489,10 @@ const Cart = () => {
 
   // Handle checkout
   const handleCheckout = useCallback(async () => {
+    console.log('🛒 handleCheckout called, paymentMethod:', paymentMethod, 'items:', cartItems.length);
     // ===================== ✅ SECURITY CHECK: EMPTY CART =====================
     if (cartItems.length === 0) {
+      console.log('❌ Cart is empty');
       toast.error('السلة فارغة');
       return;
     }
@@ -2499,6 +2501,7 @@ const Cart = () => {
     if (insideSyria) {
       // داخل سوريا: بيانات المستقبل فقط
       if (!recipientName?.trim() || !recipientPhone?.trim() || !recipientAddress?.trim()) {
+        console.log('❌ Missing recipient info (Syria):', { recipientName, recipientPhone, recipientAddress });
         toast.error('يرجى إدخال اسم المستقبل والرقم والعنوان');
         return;
       }
@@ -2506,6 +2509,7 @@ const Cart = () => {
       // خارج سوريا: بيانات المرسل والمستقبل
       if (!senderName?.trim() || !senderPhone?.trim() || !recipientName?.trim() || 
           !recipientPhone?.trim() || !recipientAddress?.trim()) {
+        console.log('❌ Missing delivery info (outside Syria):', { senderName, senderPhone, recipientName, recipientPhone, recipientAddress });
         toast.error('يرجى ملء جميع بيانات التوصيل (المرسل والمستقبل)');
         return;
       }
@@ -2516,6 +2520,7 @@ const Cart = () => {
     try {
       // ===================== ✅ SECURITY: VALIDATE PAYMENT METHOD =====================
       if (!paymentMethod || !['paypal', 'wallet', 'whatsapp', 'shared_cart'].includes(paymentMethod)) {
+        console.log('❌ Invalid payment method:', paymentMethod);
         await logSuspiciousPaymentAttempt(supabase, currentUserEmail, 'invalid_payment_method', { paymentMethod });
         toast.error('طريقة دفع غير صحيحة');
         return;
@@ -2523,6 +2528,7 @@ const Cart = () => {
 
       // ===================== ✅ SECURITY: AMOUNT VALIDATION =====================
       if (finalTotalUSD <= 0) {
+        console.log('❌ Invalid amount:', finalTotalUSD);
         await logSuspiciousPaymentAttempt(supabase, currentUserEmail, 'invalid_amount', { amount: finalTotalUSD });
         toast.error('المبلغ يجب أن يكون أكبر من صفر');
         return;
@@ -2543,6 +2549,7 @@ const Cart = () => {
       
       const { isDuplicate, error: dupError } = checkDuplicateOrder(currentUserEmail || 'guest', orderHash);
       if (isDuplicate) {
+        console.log('❌ Duplicate order blocked:', dupError);
         toast.error(dupError);
         return;
       }
@@ -2582,14 +2589,18 @@ const Cart = () => {
 
       // ===================== ✅ SECURITY: VALIDATE ORDER STRUCTURE =====================
       const validation = validatePaymentBeforeOrder(orderData);
+      console.log('🔍 Validation result:', validation);
       if (!validation.isValid) {
+        console.log('❌ Order validation failed:', validation.errors);
         await logSuspiciousPaymentAttempt(supabase, currentUserEmail, 'invalid_order_structure', { errors: validation.errors });
         toast.error(validation.errors[0] || 'بيانات الطلب غير كاملة');
         return;
       }
+      console.log('✅ Validation passed, proceeding with:', paymentMethod);
 
       if (paymentMethod === 'paypal') {
         // ===================== ✅ PAYPAL PAYMENT =====================
+        console.log('💳 Opening PayPal...');
         setShowPayPal(true);
       } else if (paymentMethod === 'wallet') {
         // ===================== ✅ WALLET PAYMENT =====================
@@ -2679,7 +2690,9 @@ const Cart = () => {
         }
       } else if (paymentMethod === 'whatsapp') {
         // حفظ طلبات واتساب مباشرة
+        console.log('📨 WhatsApp flow: saving order...');
         const savedOrder = await saveOrderToSupabase(orderData);
+        console.log('✅ Order saved:', savedOrder);
         await sendOrderToBase44(orderData);
 
         // فتح الواتساب مع الرسالة المشفرة بشكل آمن
@@ -2742,12 +2755,14 @@ const Cart = () => {
         }
       } else if (paymentMethod === 'shared_cart') {
         // مشاركة السلة مع رسوم التوصيل $3 + رسوم الخدمة
+        console.log('🔗 Shared cart flow...');
         await handleShareCart();
       }
     } catch (error) {
-      console.error('❌ خطأ في حفظ الطلب:', error);
-      toast.error('حدث خطأ في حفظ الطلب، حاول مرة أخرى');
+      console.error('❌ خطأ في حفظ الطلب:', error?.message || error, error);
+      toast.error(error?.message || 'حدث خطأ في حفظ الطلب، حاول مرة أخرى');
     } finally {
+      console.log('🏁 handleCheckout finished');
       setIsCheckingOut(false);
     }
   }, [cartItems, paymentMethod, createWhatsAppMessage, saveOrderToSupabase, sendOrderToBase44, finalTotalSYP, finalTotalUSD, selectedTipSYP, appliedCoupon, membershipDiscountSYP, clearCart, navigate, senderName, senderPhone, recipientName, recipientAddress, senderCountry, recipientPhone, additionalNotes, deliveryTime, exchangeRate, currentUserEmail, openWhatsAppSafely, insideSyria, walletBalance, handleShareCart]);
