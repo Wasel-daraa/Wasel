@@ -1205,31 +1205,7 @@ export default function SupervisorPanel() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7FAF9] flex-col gap-4">
-        <SmartLottie
-          animationPath={ANIMATION_PRESETS.pageLoading.path}
-          width={80}
-          height={80}
-          trigger="never"
-          autoplay={true}
-          loop={true}
-        />
-        <p className="text-[#475569] font-['Cairo'] font-bold">جاري تحميل لوحة المشرف...</p>
-      </div>
-    );
-  }
-
-  const processingOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'processing').length;
-  const pendingOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'pending').length;
-  const deliveringOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'delivering').length;
-  const completedOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'completed').length;
-  const cancelledOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'cancelled').length;
-  const activeCouriersCount = couriers.filter((c) => c.is_available !== false).length;
-  const pendingMembershipsCount = memberships.filter((m) => m.status === 'pending_whatsapp').length;
-
-  // Analytics computations
+  // Keep hooks before any conditional return to preserve hook order across renders.
   const analyticsData = useMemo(() => {
     const completedOrders = orders.filter(o => normalizeOrderStatus(o.status, o.payment_status) === 'completed');
     const totalRevenueUSD = completedOrders.reduce((sum, o) => sum + getOrderTotalUSD(o), 0);
@@ -1265,6 +1241,30 @@ export default function SupervisorPanel() {
 
     return { totalRevenueUSD, totalRevenueSYP, avgOrderValueUSD, ordersByDay, revenueByMethod, courierPerf, conversionRate, completedOrders };
   }, [orders, couriers]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7FAF9] flex-col gap-4">
+        <SmartLottie
+          animationPath={ANIMATION_PRESETS.pageLoading.path}
+          width={80}
+          height={80}
+          trigger="never"
+          autoplay={true}
+          loop={true}
+        />
+        <p className="text-[#475569] font-['Cairo'] font-bold">جاري تحميل لوحة المشرف...</p>
+      </div>
+    );
+  }
+
+  const processingOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'processing').length;
+  const pendingOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'pending').length;
+  const deliveringOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'delivering').length;
+  const completedOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'completed').length;
+  const cancelledOrdersCount = orders.filter((o) => normalizeOrderStatus(o.status, o.payment_status) === 'cancelled').length;
+  const activeCouriersCount = couriers.filter((c) => c.is_available !== false).length;
+  const pendingMembershipsCount = memberships.filter((m) => m.status === 'pending_whatsapp').length;
 
   // Export to CSV
   const exportOrdersCSV = () => {
