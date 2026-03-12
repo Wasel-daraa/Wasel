@@ -440,6 +440,8 @@ const AuthenticatedApp = () => {
 
   const isCourier = userRole === 'courier' || userRole === 'delivery_person';
   const isAdmin = ['admin', 'super_admin', 'support', 'operator', 'supervisor'].includes(userRole);
+  const GuardedDriverPanel = React.useMemo(() => withCourier(Pages.DriverPanel), []);
+  const GuardedSupervisorPanel = React.useMemo(() => withAdmin(Pages.SupervisorPanel), []);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -480,7 +482,7 @@ const AuthenticatedApp = () => {
         <Route path="/shared-cart" element={<LayoutWrapper currentPageName="SharedCart"><SharedCartPay /></LayoutWrapper>} />
         <Route path="/wasel-app/shared-cart/:token" element={<LayoutWrapper currentPageName="SharedCart"><SharedCartPay /></LayoutWrapper>} />
         <Route path="/wasel-app/shared-cart" element={<LayoutWrapper currentPageName="SharedCart"><SharedCartPay /></LayoutWrapper>} />
-        <Route path="/DriverPanel" element={withCourier(Pages.DriverPanel)} />
+        <Route path="/DriverPanel" element={<GuardedDriverPanel />} />
         <Route path="/CourierTerms" element={<Pages.CourierTerms />} />
         <Route path="/CourierGuide" element={<Pages.CourierGuide />} />
         <Route path="/SupervisorGuide" element={<Pages.SupervisorGuide />} />
@@ -499,7 +501,7 @@ const AuthenticatedApp = () => {
         <Route path="/shared-cart" element={<LayoutWrapper currentPageName="SharedCart"><SharedCartPay /></LayoutWrapper>} />
         <Route path="/wasel-app/shared-cart/:token" element={<LayoutWrapper currentPageName="SharedCart"><SharedCartPay /></LayoutWrapper>} />
         <Route path="/wasel-app/shared-cart" element={<LayoutWrapper currentPageName="SharedCart"><SharedCartPay /></LayoutWrapper>} />
-        <Route path="/SupervisorPanel" element={withAdmin(Pages.SupervisorPanel)} />
+        <Route path="/SupervisorPanel" element={<GuardedSupervisorPanel />} />
         <Route path="/CourierTerms" element={<Pages.CourierTerms />} />
         <Route path="/CourierGuide" element={<Pages.CourierGuide />} />
         <Route path="/SupervisorGuide" element={<Pages.SupervisorGuide />} />
