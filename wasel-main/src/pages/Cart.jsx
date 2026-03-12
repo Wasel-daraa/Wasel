@@ -1352,14 +1352,22 @@ const Cart = () => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
-        const { data } = await supabase
+        if (!session?.user) {
+          console.log('⚠️ No session for wallet balance load');
+          return;
+        }
+        const { data, error } = await supabase
           .from('wallets')
           .select('balance_usd')
           .eq('user_id', session.user.id)
           .maybeSingle();
+        if (error) {
+          console.error('❌ Wallet balance query error:', error.message, error);
+        }
         if (data) setWalletBalance(Number(data.balance_usd) || 0);
-      } catch {}
+      } catch (err) {
+        console.error('❌ Wallet balance load failed:', err);
+      }
     })();
   }, []);
 
@@ -1584,7 +1592,12 @@ const Cart = () => {
           .limit(1)
           .maybeSingle();
 
-        if (error || !data) {
+        if (error) {
+          console.error('❌ wasel_plus_memberships query error:', error.message, error);
+          setIsWaselPlusMember(false);
+          return;
+        }
+        if (!data) {
           setIsWaselPlusMember(false);
           return;
         }
@@ -2489,7 +2502,14 @@ const Cart = () => {
 
   // Handle checkout
   const handleCheckout = useCallback(async () => {
-    console.log('🛒 handleCheckout called, paymentMethod:', paymentMethod, 'items:', cartItems.length);
+    console.log('🛒 handleCheckout called, paymentMethod:', paymentMethod, 'items:', cartItems.length, 'isCheckingOut:', isCheckingOut);
+    
+    // Safety: prevent double-click if already processing
+    if (isCheckingOut) {
+      console.log('⚠️ Already checking out, ignoring click');
+      return;
+    }
+    
     // ===================== ✅ SECURITY CHECK: EMPTY CART =====================
     if (cartItems.length === 0) {
       console.log('❌ Cart is empty');
@@ -2765,7 +2785,7 @@ const Cart = () => {
       console.log('🏁 handleCheckout finished');
       setIsCheckingOut(false);
     }
-  }, [cartItems, paymentMethod, createWhatsAppMessage, saveOrderToSupabase, sendOrderToBase44, finalTotalSYP, finalTotalUSD, selectedTipSYP, appliedCoupon, membershipDiscountSYP, clearCart, navigate, senderName, senderPhone, recipientName, recipientAddress, senderCountry, recipientPhone, additionalNotes, deliveryTime, exchangeRate, currentUserEmail, openWhatsAppSafely, insideSyria, walletBalance, handleShareCart]);
+  }, [cartItems, paymentMethod, createWhatsAppMessage, saveOrderToSupabase, sendOrderToBase44, finalTotalSYP, finalTotalUSD, selectedTipSYP, appliedCoupon, membershipDiscountSYP, clearCart, navigate, senderName, senderPhone, recipientName, recipientAddress, senderCountry, recipientPhone, additionalNotes, deliveryTime, exchangeRate, currentUserEmail, openWhatsAppSafely, insideSyria, walletBalance, handleShareCart, isCheckingOut]);
 
   // PayPal Success Handler
   const handlePayPalSuccess = useCallback(async (details) => {
