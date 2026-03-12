@@ -76,7 +76,10 @@ export function initDeepLinkHandler() {
     isHandling = true;
     
     try {
-      if (url.includes('code=')) {
+      // PKCE flow: parse code properly to avoid matching error_code
+      const urlObj = new URL(url);
+      const pkceCode = urlObj.searchParams.get('code');
+      if (pkceCode && pkceCode.trim().length > 0) {
         console.log('WASEL_DEBUG: Found PKCE code, exchanging...');
         const { data, error } = await supabase.auth.exchangeCodeForSession(url);
         if (error) {

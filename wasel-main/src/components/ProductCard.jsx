@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUsdToSypRate } from '@/lib/exchangeRate';
 import SmartLottie from '@/components/animations/SmartLottie';
 import { ANIMATION_PRESETS } from '@/components/animations/animationPresets';
+import AddToCartButton from '@/components/buttons/AddToCartButton';
 
 // =====================================================
 // CONSTANTS - نفس الثوابت في Cart.jsx
@@ -255,18 +256,14 @@ const ProductCard = memo(function ProductCard({
           </div>
         </div>
 
-        <motion.button
-          className="w-full mt-2 h-9 rounded-xl bg-[#111827] text-white flex items-center justify-center gap-2 shadow-md font-bold text-xs relative"
-          onClick={handleAddToCart}
-          whileTap={{ scale: 0.98 }}
-          disabled={isAddingToCart || productStock < 1}
-        >
-          {isAddingToCart ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Plus className="w-4 h-4" />
-          )}
-          <span>أضف إلى السلة</span>
+        <div className="relative">
+          <AddToCartButton
+            onClick={(e) => { if (e) e.stopPropagation(); handleAddToCart({ stopPropagation: () => {} }); }}
+            disabled={isAddingToCart || productStock < 1}
+            isLoading={isAddingToCart}
+            label="أضف إلى السلة"
+            className="mt-2 h-9 text-xs"
+          />
 
           {/* Add to Cart Animation */}
           <AnimatePresence>
@@ -284,7 +281,7 @@ const ProductCard = memo(function ProductCard({
               </div>
             )}
           </AnimatePresence>
-        </motion.button>
+        </div>
 
         {/* Stock Warning */}
         {productStock > 0 && productStock <= 5 && (

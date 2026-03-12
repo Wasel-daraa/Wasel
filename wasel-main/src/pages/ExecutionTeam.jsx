@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import OrderChat from '../components/chat/OrderChat';
 import PasswordProtection from '../components/common/PasswordProtection';
+import SmartLottie from '@/components/animations/SmartLottie';
+import { ANIMATION_PRESETS } from '@/components/animations/animationPresets';
 
 const statusOptions = [
   { value: 'received', label: 'تم الاستلام', color: 'bg-blue-100 text-blue-700', icon: Clock },
@@ -173,7 +175,16 @@ export default function ExecutionTeam() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="w-12 h-12 border-4 border-[#52B788] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <div className="flex justify-center mb-4">
+              <SmartLottie
+                animationPath={ANIMATION_PRESETS.pageLoading.path}
+                width={80}
+                height={80}
+                trigger="never"
+                autoplay={true}
+                loop={true}
+              />
+            </div>
             <p className="text-[#1B4332]/60">جاري التحميل...</p>
           </div>
         ) : (

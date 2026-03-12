@@ -20,6 +20,8 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import { initializePushNotifications, deactivateCurrentDeviceToken } from '@/services/pushNotifications';
 import SharedPay from './pages/SharedPay';
 import SharedCartPay from './pages/SharedCartPay';
+import SmartLottie from '@/components/animations/SmartLottie';
+import { ANIMATION_PRESETS } from '@/components/animations/animationPresets';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -349,11 +351,21 @@ const AuthenticatedApp = () => {
     
     checkSession();
     
-    // حد أقصى قصير لواجهة دخول أسرع
+    // حد أقصى - كافي لاكتمال OAuth callback parsing
     timeoutId = setTimeout(() => {
       if (!isMounted) return;
+      // قبل إنهاء التحقق، تأكد أنه لا يوجد tokens في URL لم تتم معالجتها بعد
+      const currentHash = window.location.hash;
+      if (currentHash.includes('access_token')) {
+        // لا تزال هناك tokens، أعطِ وقتاً إضافياً لـ onAuthStateChange
+        setTimeout(() => {
+          if (!isMounted) return;
+          setCheckingAuth((prev) => prev ? false : prev);
+        }, 3000);
+        return;
+      }
       setCheckingAuth((prev) => prev ? false : prev);
-    }, 1200);
+    }, 2500);
     
     // الاستماع لتغييرات الجلسة
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, supabaseSession) => {
@@ -366,6 +378,10 @@ const AuthenticatedApp = () => {
             setSession(resolved);
             await resolveUserRole(resolved);
             setCheckingAuth(false);
+            // تنظيف URL إذا كان لا يزال يحتوي على tokens
+            if (window.location.hash.includes('access_token') || window.location.search.includes('access_token')) {
+              window.history.replaceState({}, document.title, window.location.pathname || '/');
+            }
             // تهيئة الإشعارات بعد تسجيل الدخول
             initializePushNotifications();
           })();
@@ -420,7 +436,14 @@ const AuthenticatedApp = () => {
   if (checkingAuth) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-white">
-        <div className="w-10 h-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
+        <SmartLottie
+          animationPath={ANIMATION_PRESETS.pageLoading.path}
+          width={80}
+          height={80}
+          trigger="never"
+          autoplay={true}
+          loop={true}
+        />
         <p className="text-gray-500 text-sm">جاري التحميل...</p>
       </div>
     );
@@ -446,7 +469,14 @@ const AuthenticatedApp = () => {
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+        <SmartLottie
+          animationPath={ANIMATION_PRESETS.pageLoading.path}
+          width={80}
+          height={80}
+          trigger="never"
+          autoplay={true}
+          loop={true}
+        />
       </div>
     );
   }

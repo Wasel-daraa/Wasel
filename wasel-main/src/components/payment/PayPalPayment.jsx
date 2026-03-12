@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+const isMobile = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 // Fixed: Using Supabase functions with proper mobile support
 // The 'create-paypal-payment' function now includes fallback for null origin headers from mobile
 const API_BASE = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || 'https://ofdqkracfqakbtjjmksa.supabase.co/functions/v1';
@@ -153,7 +155,8 @@ export default function PayPalPayment({ amount, onSuccess, onError }) {
                 label: 'paypal',
                 height: 45
             },
-            fundingSource: window.paypal.FUNDING.PAYPAL
+            fundingSource: window.paypal.FUNDING.PAYPAL,
+            ...(isMobile() ? { experience: { input_fields: { no_shipping: 1 } } } : {})
         });
 
         if (paypalButtons?.isEligible?.()) {
@@ -296,7 +299,9 @@ export default function PayPalPayment({ amount, onSuccess, onError }) {
         <>
             <div className="w-full space-y-3 flex flex-col items-center">
                 {/* زر PayPal */}
-                <div ref={paypalRef} className="w-full max-w-[360px] min-h-[50px]"></div>
+                <div ref={paypalRef} className="w-full max-w-[360px] min-h-[50px]"
+                  style={isMobile() ? { minHeight: '55px', touchAction: 'manipulation' } : {}}
+                ></div>
 
                 {/* زر فتح الدفع بالبطاقة في نافذة مخصصة */}
                 <button
@@ -309,8 +314,12 @@ export default function PayPalPayment({ amount, onSuccess, onError }) {
             </div>
 
             {showCardModal && (
-                <div className="fixed inset-0 z-[120] bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-[#D1D5DB] bg-white p-4 shadow-2xl">
+                <div className="fixed inset-0 z-[120] bg-black/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowCardModal(false); }}
+                >
+                    <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-[#D1D5DB] bg-white p-4 shadow-2xl"
+                      style={{ touchAction: 'manipulation' }}
+                    >
                         <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-bold text-[#1F2937]" dir="rtl">الدفع بالبطاقة البنكية</h4>
                             <button

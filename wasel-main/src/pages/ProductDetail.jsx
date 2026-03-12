@@ -15,6 +15,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { secureApi, trackInteraction } from '@/services/secureApi';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
+import AddToCartButton from '@/components/buttons/AddToCartButton';
 import { toast } from 'sonner';
 
 // =====================================================
@@ -620,22 +621,13 @@ export default function ProductDetail() {
           />
 
           {/* Add to Cart Button */}
-          <motion.button
+          <AddToCartButton
             onClick={handleAddToCart}
             disabled={product.stock_qty === 0 || isAddingToCart}
-            className="flex-1 h-12 rounded-xl bg-[#1F7A63] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {isAddingToCart ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <ShoppingCart className="w-5 h-5" />
-                إضافة للسلة - ${(product.price_usd * quantity).toFixed(2)}
-              </>
-            )}
-          </motion.button>
+            isLoading={isAddingToCart}
+            label={`إضافة للسلة - $${(product.price_usd * quantity).toFixed(2)}`}
+            className="flex-1 h-12"
+          />
         </div>
       </div>
     </div>
