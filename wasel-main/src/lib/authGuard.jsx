@@ -60,7 +60,7 @@ export async function requireCourier() {
   
   const { data: courier, error } = await supabase
     .from('courier_profiles')
-    .select('id, user_id, onboarding_completed')
+    .select('user_id, onboarding_completed')
     .eq('user_id', user.id)
     .maybeSingle();
   
@@ -374,7 +374,7 @@ export function withAdmin(PageComponent) {
   return function AdminPage(props) {
     const [loading, setLoading] = React.useState(true);
     const [authorized, setAuthorized] = React.useState(false);
-    const navigate = useNavigate();
+    const [accessError, setAccessError] = React.useState(null);
     
     React.useEffect(() => {
       (async () => {
@@ -382,16 +382,16 @@ export function withAdmin(PageComponent) {
           await requireAdmin();
           setAuthorized(true);
         } catch (error) {
-          console.warn('⚠️ Admin access denied');
-          navigate(DEFAULT_REDIRECT);
+          console.warn('⚠️ Admin access denied:', error.message);
+          setAccessError(error.message);
         } finally {
           setLoading(false);
         }
       })();
-    }, [navigate]);
+    }, []);
     
     if (loading) return <LoadingScreen />;
-    if (!authorized) return null;
+    if (!authorized) return <AccessDeniedScreen role="admin" error={accessError} />;
     
     return <PageComponent {...props} />;
   };
@@ -404,7 +404,7 @@ export function withCourier(PageComponent) {
   return function CourierPage(props) {
     const [loading, setLoading] = React.useState(true);
     const [authorized, setAuthorized] = React.useState(false);
-    const navigate = useNavigate();
+    const [accessError, setAccessError] = React.useState(null);
     
     React.useEffect(() => {
       (async () => {
@@ -412,16 +412,16 @@ export function withCourier(PageComponent) {
           await requireCourier();
           setAuthorized(true);
         } catch (error) {
-          console.warn('⚠️ Courier access denied');
-          navigate(DEFAULT_REDIRECT);
+          console.warn('⚠️ Courier access denied:', error.message);
+          setAccessError(error.message);
         } finally {
           setLoading(false);
         }
       })();
-    }, [navigate]);
+    }, []);
     
     if (loading) return <LoadingScreen />;
-    if (!authorized) return null;
+    if (!authorized) return <AccessDeniedScreen role="courier" error={accessError} />;
     
     return <PageComponent {...props} />;
   };
@@ -433,6 +433,36 @@ function LoadingScreen() {
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
         <p className="mt-4 text-gray-600">جاري التحقق من الصلاحيات...</p>
+      </div>
+    </div>
+  );
+}
+
+function AccessDeniedScreen({ role, error }) {
+  const handleRetry = () => window.location.reload();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100" dir="rtl">
+      <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
+        <div className="text-5xl mb-4">🔒</div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">
+          {role === 'admin' ? 'تعذّر الوصول لصفحة المشرف' : 'تعذّر الوصول لصفحة الموصل'}
+        </h2>
+        <p className="text-gray-500 text-sm mb-4">
+          تأكد أن حسابك مسجّل بالصلاحية المطلوبة
+        </p>
+        {error && <p className="text-red-400 text-xs mb-4 bg-red-50 p-2 rounded">{error}</p>}
+        <div className="flex gap-3 justify-center">
+          <button onClick={handleRetry} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            إعادة المحاولة
+          </button>
+          <button onClick={handleLogout} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+            تسجيل الخروج
+          </button>
+        </div>
       </div>
     </div>
   );
